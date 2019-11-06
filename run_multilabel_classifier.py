@@ -211,8 +211,7 @@ class CommentProcessor(DataProcessor):
 
     def get_train_examples(self, data_dir):
         """Gets a collection of `InputExample`s for the train set."""
-        file_path = os.path.join(data_dir,'comment-classification/ai_challenger_sentiment_analysis_trainingset_20180816/sentiment_analysis_testatest.csv')
-                                #'comment-classification/ai_challenger_sentiment_analysis_trainingset_20180816/sentiment_analysis_trainingset.csv')
+        file_path = os.path.join(data_dir,'comment-classification/ai_challenger_sentiment_analysis_trainingset_20180816/sentiment_analysis_trainingset.csv')
         train_df = pd.read_csv(file_path, encoding='utf-8')
         train_data = []
         for index, train in enumerate(train_df.values):
@@ -224,9 +223,7 @@ class CommentProcessor(DataProcessor):
 
     def get_dev_examples(self, data_dir):
         """Gets a collection of `InputExample`s for the train set."""
-        file_path = os.path.join(data_dir, 'comment-classification/ai_challenger_sentiment_analysis_trainingset_20180816/sentiment_analysis_testatest.csv')
-
-                                # 'comment-classification/ai_challenger_sentiment_analysis_validationset_20180816/sentiment_analysis_validationset.csv')
+        file_path = os.path.join(data_dir,  'comment-classification/ai_challenger_sentiment_analysis_validationset_20180816/sentiment_analysis_validationset.csv')
         train_df = pd.read_csv(file_path, encoding='utf-8')
         train_data = []
         for index, train in enumerate(train_df.values):
