@@ -2,7 +2,7 @@ export BERT_BASE_DIR=/Users/henry/Documents/application/bert/data/chinese_robert
 export MY_DATASET=/Users/henry/Documents/application/bert/data/
 export BPYTHONUNBUFFERED=1
 
-nohup python3 run_classifier.py \
+nohup python3 run_multilabel_classifier.py \
 --do_train=true \
 --do_eval=true \
 --do_predict=false \

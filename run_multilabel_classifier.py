@@ -22,10 +22,10 @@ import collections
 import csv
 import os
 import modeling
-import optimization_finetuning as optimization
+import optimization
 import tokenization
 import tensorflow as tf
-# from loss import bi_tempered_logistic_loss
+import pandas as pd
 
 flags = tf.flags
 
@@ -130,6 +130,7 @@ class InputExample(object):
 
   def __init__(self, guid, text_a, text_b=None, label=None):
     """Constructs a InputExample.
+
     Args:
       guid: Unique id for the example.
       text_a: string. The untokenized text of the first sequence. For single
@@ -147,10 +148,12 @@ class InputExample(object):
 
 class PaddingInputExample(object):
   """Fake example so the num input examples is a multiple of the batch size.
+
   When running eval/predict on the TPU, we need to pad the number of examples
   to be a multiple of the batch size, because the TPU requires a fixed batch
   size. The alternative is to drop the last batch, which is bad because it means
   the entire output data won't be generated.
+
   We use this class instead of `None` because treating `None` as padding
   battches could cause silent errors.
   """
@@ -202,26 +205,236 @@ class DataProcessor(object):
       return lines
 
 
-class LCQMCPairClassificationProcessor(DataProcessor): # TODO NEED CHANGE2
-  """Processor for the internal data set. sentence pair classification"""
+
+class CommentProcessor(DataProcessor):
+    """Base class for data converters for sequence classification data sets."""
+
+    def get_train_examples(self, data_dir):
+        """Gets a collection of `InputExample`s for the train set."""
+        file_path = os.path.join(data_dir,'comment-classification/ai_challenger_sentiment_analysis_trainingset_20180816/sentiment_analysis_testatest.csv')
+                                #'comment-classification/ai_challenger_sentiment_analysis_trainingset_20180816/sentiment_analysis_trainingset.csv')
+        train_df = pd.read_csv(file_path, encoding='utf-8')
+        train_data = []
+        for index, train in enumerate(train_df.values):
+            guid = train[0]
+            text_a = tokenization.convert_to_unicode(str(train[1]))
+            label =self.__convertLabel(train[2:])
+            train_data.append(InputExample(guid=guid, text_a=text_a, label=label))  # ,text_b=text_b
+        return train_data
+
+    def get_dev_examples(self, data_dir):
+        """Gets a collection of `InputExample`s for the train set."""
+        file_path = os.path.join(data_dir, 'comment-classification/ai_challenger_sentiment_analysis_trainingset_20180816/sentiment_analysis_testatest.csv')
+
+                                # 'comment-classification/ai_challenger_sentiment_analysis_validationset_20180816/sentiment_analysis_validationset.csv')
+        train_df = pd.read_csv(file_path, encoding='utf-8')
+        train_data = []
+        for index, train in enumerate(train_df.values):
+            guid = train[0]
+            text_a = tokenization.convert_to_unicode(str(train[1]))
+            label = self.__convertLabel(train[2:])
+            train_data.append(InputExample(guid=guid, text_a=text_a, label=label))  # ,text_b=text_b
+        return train_data
+
+    def get_test_examples(self, data_dir):
+        file_path = os.path.join(data_dir, 'comment-classification/ai_challenger_sentiment_analysis_validationset_20180816／sentiment_analysis_validationset.csv')
+        train_df = pd.read_csv(file_path, encoding='utf-8')
+        train_data = []
+        for index, train in enumerate(train_df.values):
+            guid = train[0]
+            text_a = tokenization.convert_to_unicode(str(train[1]))
+            label = self.__convertLabel(train[2:])
+            train_data.append(InputExample(guid=guid, text_a=text_a, label=label))  # ,text_b=text_b
+        return train_data
+
+    def __convertLabel(self,labels):
+        """
+        将各纬度label转换为二进制,i -> [i*4,i*4+3]
+        1, 0, -1 ,-2 ->正面情感(Positive)	,中性情感(Neutral),	负面情感（Negative）	,情感倾向未提及NotMentioned）
+        :param labels:
+        :return:
+        """
+        label = [len(labels)*4]
+        for i, l in enumerate(labels):
+            index = i * 4
+            label[index:index + 3] = [0, 0, 0, 0]
+            if l == 1:  # Positive
+                label[index] = 1
+            elif l == 0:  # Neutral
+                label[index + 1] = 1
+            elif l == -1:  # Negative
+                label[index + 2] = 1
+            elif l == -2:#NotMentioned
+                label[index + 3] = 1
+
+        return label
+
+    def get_labels(self):
+        """Gets the list of labels for this data set.
+        将2个label转换为80个label
+        """
+        orLabels = ['location_traffic_convenience','location_distance_from_business_district','location_easy_to_find','service_wait_time','service_waiters_attitude','service_parking_convenience','service_serving_speed','price_level','price_cost_effective','price_discount','environment_decoration','environment_noise','environment_space','environment_cleaness','dish_portion','dish_taste','dish_look','dish_recommendation','others_overall_experience','others_willing_to_consume_again']
+        labels =  []
+        for i, l in enumerate(orLabels):
+            labels.append(l+'Positive')
+            labels.append(l + 'Neutral')
+            labels.append(l + 'Negative')
+            labels.append(l + 'NotMentioned')
+        return labels
+
+
+class SimProcessor(DataProcessor):
+
+    """Base class for data converters for sequence classification data sets."""
+
+    def get_train_examples(self, data_dir):
+        """Gets a collection of `InputExample`s for the train set."""
+        file_path = os.path.join(data_dir,'train.csv')
+        train_df = pd.read_csv(file_path,encoding='utf-8')
+        train_data = []
+        for index ,train in enumerate(train_df.values):
+            guid = 'train-%d' % index
+            text_a = tokenization.convert_to_unicode(str(train[2]))
+            #text_b = tokenization.convert_to_unicode(str(train[1]))
+            label = str(train[1])
+            train_data.append(InputExample(guid=guid,text_a=text_a,label=label))#,text_b=text_b
+        return train_data
+
+    def get_dev_examples(self, data_dir):
+        """Gets a collection of `InputExample`s for the train set."""
+        file_path = os.path.join(data_dir, 'dev.csv')
+        train_df = pd.read_csv(file_path, encoding='utf-8')
+        train_data = []
+        for index, train in enumerate(train_df.values):
+            guid = 'train-%d' % index
+            text_a = tokenization.convert_to_unicode(str(train[2]))
+            # text_b = tokenization.convert_to_unicode(str(train[1]))
+            label = str(train[1])
+            train_data.append(InputExample(guid=guid, text_a=text_a, label=label))  # ,text_b=text_b
+        return train_data
+
+    def get_test_examples(self, data_dir):
+        file_path = os.path.join(data_dir, 'test.csv')
+        train_df = pd.read_csv(file_path, encoding='utf-8')
+        train_data = []
+        for index, train in enumerate(train_df.values):
+            guid = 'train-%d' % index
+            text_a = tokenization.convert_to_unicode(str(train[2]))
+            # text_b = tokenization.convert_to_unicode(str(train[1]))
+            label = str(train[1])
+            train_data.append(InputExample(guid=guid, text_a=text_a, label=label))  # ,text_b=text_b
+        return train_data
+
+    def get_labels(self):
+        """Gets the list of labels for this data set."""
+        return ['A','B','C']
+
+class XnliProcessor(DataProcessor):
+  """Processor for the XNLI data set."""
+
   def __init__(self):
     self.language = "zh"
 
   def get_train_examples(self, data_dir):
     """See base class."""
+    lines = self._read_tsv(
+        os.path.join(data_dir, "multinli",
+                     "multinli.train.%s.tsv" % self.language))
+    examples = []
+    for (i, line) in enumerate(lines):
+      if i == 0:
+        continue
+      guid = "train-%d" % (i)
+      text_a = tokenization.convert_to_unicode(line[0])
+      text_b = tokenization.convert_to_unicode(line[1])
+      label = tokenization.convert_to_unicode(line[2])
+      if label == tokenization.convert_to_unicode("contradictory"):
+        label = tokenization.convert_to_unicode("contradiction")
+      examples.append(
+          InputExample(guid=guid, text_a=text_a, text_b=text_b, label=label))
+    return examples
+
+  def get_dev_examples(self, data_dir):
+    """See base class."""
+    lines = self._read_tsv(os.path.join(data_dir, "xnli.dev.tsv"))
+    examples = []
+    for (i, line) in enumerate(lines):
+      if i == 0:
+        continue
+      guid = "dev-%d" % (i)
+      language = tokenization.convert_to_unicode(line[0])
+      if language != tokenization.convert_to_unicode(self.language):
+        continue
+      text_a = tokenization.convert_to_unicode(line[6])
+      text_b = tokenization.convert_to_unicode(line[7])
+      label = tokenization.convert_to_unicode(line[1])
+      examples.append(
+          InputExample(guid=guid, text_a=text_a, text_b=text_b, label=label))
+    return examples
+
+  def get_labels(self):
+    """See base class."""
+    return ["contradiction", "entailment", "neutral"]
+
+
+class MnliProcessor(DataProcessor):
+  """Processor for the MultiNLI data set (GLUE version)."""
+
+  def get_train_examples(self, data_dir):
+    """See base class."""
     return self._create_examples(
-        self._read_tsv(os.path.join(data_dir, "train.txt")), "train")
-    # dev_0827.tsv
+        self._read_tsv(os.path.join(data_dir, "train.tsv")), "train")
 
   def get_dev_examples(self, data_dir):
     """See base class."""
     return self._create_examples(
-        self._read_tsv(os.path.join(data_dir, "dev.txt")), "dev")
+        self._read_tsv(os.path.join(data_dir, "dev_matched.tsv")),
+        "dev_matched")
 
   def get_test_examples(self, data_dir):
     """See base class."""
     return self._create_examples(
-        self._read_tsv(os.path.join(data_dir, "test.txt")), "test")
+        self._read_tsv(os.path.join(data_dir, "test_matched.tsv")), "test")
+
+  def get_labels(self):
+    """See base class."""
+    return ["contradiction", "entailment", "neutral"]
+
+  def _create_examples(self, lines, set_type):
+    """Creates examples for the training and dev sets."""
+    examples = []
+    for (i, line) in enumerate(lines):
+      if i == 0:
+        continue
+      guid = "%s-%s" % (set_type, tokenization.convert_to_unicode(line[0]))
+      text_a = tokenization.convert_to_unicode(line[8])
+      text_b = tokenization.convert_to_unicode(line[9])
+      if set_type == "test":
+        label = "contradiction"
+      else:
+        label = tokenization.convert_to_unicode(line[-1])
+      examples.append(
+          InputExample(guid=guid, text_a=text_a, text_b=text_b, label=label))
+    return examples
+
+
+class MrpcProcessor(DataProcessor):
+  """Processor for the MRPC data set (GLUE version)."""
+
+  def get_train_examples(self, data_dir):
+    """See base class."""
+    return self._create_examples(
+        self._read_tsv(os.path.join(data_dir, "train.tsv")), "train")
+
+  def get_dev_examples(self, data_dir):
+    """See base class."""
+    return self._create_examples(
+        self._read_tsv(os.path.join(data_dir, "dev.tsv")), "dev")
+
+  def get_test_examples(self, data_dir):
+    """See base class."""
+    return self._create_examples(
+        self._read_tsv(os.path.join(data_dir, "test.tsv")), "test")
 
   def get_labels(self):
     """See base class."""
@@ -230,20 +443,59 @@ class LCQMCPairClassificationProcessor(DataProcessor): # TODO NEED CHANGE2
   def _create_examples(self, lines, set_type):
     """Creates examples for the training and dev sets."""
     examples = []
-    print("length of lines:",len(lines))
     for (i, line) in enumerate(lines):
-      #print('#i:',i,line)
       if i == 0:
         continue
       guid = "%s-%s" % (set_type, i)
-      try:
-          label = tokenization.convert_to_unicode(line[2])
-          text_a = tokenization.convert_to_unicode(line[0])
-          text_b = tokenization.convert_to_unicode(line[1])
-          examples.append(
-              InputExample(guid=guid, text_a=text_a, text_b=text_b, label=label))
-      except Exception:
-          print('###error.i:', i, line)
+      text_a = tokenization.convert_to_unicode(line[3])
+      text_b = tokenization.convert_to_unicode(line[4])
+      if set_type == "test":
+        label = "0"
+      else:
+        label = tokenization.convert_to_unicode(line[0])
+      examples.append(
+          InputExample(guid=guid, text_a=text_a, text_b=text_b, label=label))
+    return examples
+
+
+class ColaProcessor(DataProcessor):
+  """Processor for the CoLA data set (GLUE version)."""
+
+  def get_train_examples(self, data_dir):
+    """See base class."""
+    return self._create_examples(
+        self._read_tsv(os.path.join(data_dir, "train.tsv")), "train")
+
+  def get_dev_examples(self, data_dir):
+    """See base class."""
+    return self._create_examples(
+        self._read_tsv(os.path.join(data_dir, "dev.tsv")), "dev")
+
+  def get_test_examples(self, data_dir):
+    """See base class."""
+    return self._create_examples(
+        self._read_tsv(os.path.join(data_dir, "test.tsv")), "test")
+
+  def get_labels(self):
+    """See base class."""
+    return ["0", "1"]
+
+  def _create_examples(self, lines, set_type):
+    """Creates examples for the training and dev sets."""
+    examples = []
+    for (i, line) in enumerate(lines):
+      # Only the test set has a header
+      if set_type == "test" and i == 0:
+        continue
+      guid = "%s-%s" % (set_type, i)
+      if set_type == "test":
+        text_a = tokenization.convert_to_unicode(line[1])
+        label = "0"
+      else:
+        text_a = tokenization.convert_to_unicode(line[3])
+        label = tokenization.convert_to_unicode(line[1])
+      examples.append(
+          InputExample(guid=guid, text_a=text_a, text_b=None, label=label))
     return examples
 
 
@@ -329,7 +581,13 @@ def convert_single_example(ex_index, example, label_list, max_seq_length,
   assert len(input_mask) == max_seq_length
   assert len(segment_ids) == max_seq_length
 
-  label_id = label_map[example.label]
+  #mutl class label_id = label_map[example.label]
+
+  #multi task
+  label_id = []
+  for l in example.label:
+      label_id.append(int(l))
+
   if ex_index < 5:
     tf.logging.info("*** Example ***")
     tf.logging.info("guid: %s" % (example.guid))
@@ -338,7 +596,7 @@ def convert_single_example(ex_index, example, label_list, max_seq_length,
     tf.logging.info("input_ids: %s" % " ".join([str(x) for x in input_ids]))
     tf.logging.info("input_mask: %s" % " ".join([str(x) for x in input_mask]))
     tf.logging.info("segment_ids: %s" % " ".join([str(x) for x in segment_ids]))
-    tf.logging.info("label: %s (id = %d)" % (example.label, label_id))
+    tf.logging.info("label: %s (id = %s)" % (example.label, str(label_id)))
 
   feature = InputFeatures(
       input_ids=input_ids,
@@ -370,9 +628,16 @@ def file_based_convert_examples_to_features(
     features["input_ids"] = create_int_feature(feature.input_ids)
     features["input_mask"] = create_int_feature(feature.input_mask)
     features["segment_ids"] = create_int_feature(feature.segment_ids)
-    features["label_ids"] = create_int_feature([feature.label_id])
     features["is_real_example"] = create_int_feature(
         [int(feature.is_real_example)])
+    #multi class features["label_ids"] = create_int_feature([feature.label_id])
+    #multi task
+    if isinstance(feature.label_id, list):
+        label_ids = feature.label_id
+    else:
+        label_ids = feature.label_id[0]
+    features["label_ids"] = create_int_feature(label_ids)
+
 
     tf_example = tf.train.Example(features=tf.train.Features(feature=features))
     writer.write(tf_example.SerializeToString())
@@ -382,12 +647,13 @@ def file_based_convert_examples_to_features(
 def file_based_input_fn_builder(input_file, seq_length, is_training,
                                 drop_remainder):
   """Creates an `input_fn` closure to be passed to TPUEstimator."""
-
+  #multi-label
+  num_labels = 80
   name_to_features = {
       "input_ids": tf.FixedLenFeature([seq_length], tf.int64),
       "input_mask": tf.FixedLenFeature([seq_length], tf.int64),
       "segment_ids": tf.FixedLenFeature([seq_length], tf.int64),
-      "label_ids": tf.FixedLenFeature([], tf.int64),
+      "label_ids": tf.FixedLenFeature([num_labels], tf.int64),
       "is_real_example": tf.FixedLenFeature([], tf.int64),
   }
 
@@ -443,6 +709,22 @@ def _truncate_seq_pair(tokens_a, tokens_b, max_length):
     else:
       tokens_b.pop()
 
+def center_loss(features, label, alfa, nrof_classes):
+    """Center loss based on the paper "A Discriminative Feature Learning Approach for Deep Face Recognition"
+          (http://ydwen.github.io/papers/WenECCV16.pdf)
+          https://blog.csdn.net/u014380165/article/details/76946339
+    """
+    nrof_features = features.get_shape()[1]
+    # 训练过程中，需要保存当前所有类中心的全连接预测特征centers， 每个batch的计算都要先读取已经保存的centers
+    centers = tf.get_variable('centers', [ nrof_classes, nrof_features], dtype=tf.float32,
+    initializer=tf.constant_initializer(0), trainable=False)
+    label = tf.reshape(label, [-1])
+    centers_batch = tf.gather(centers, label)#获取当前batch对应的类中心特征
+    diff = (1 - alfa) * (centers_batch - features)#计算当前的类中心与特征的差异，用于Cj的的梯度更新，这里facenet的作者做了一个 1-alfa操作，比较奇怪，和原论文不同
+    centers = tf.scatter_sub(centers, label, diff)#更新梯度Cj，对于上图中步骤6，tensorflow会将该变量centers保留下来，用于计算下一个batch的centerloss
+    loss = tf.reduce_mean(tf.square(features - centers_batch))#计算当前的centerloss 对应于Lc
+
+    return loss, centers
 
 def create_model(bert_config, is_training, input_ids, input_mask, segment_ids,
                  labels, num_labels, use_one_hot_embeddings):
@@ -478,20 +760,18 @@ def create_model(bert_config, is_training, input_ids, input_mask, segment_ids,
 
     logits = tf.matmul(output_layer, output_weights, transpose_b=True)
     logits = tf.nn.bias_add(logits, output_bias)
-    probabilities = tf.nn.softmax(logits, axis=-1)
-    log_probs = tf.nn.log_softmax(logits, axis=-1)
+    #multi-class probabilities = tf.nn.softmax(logits, axis=-1)
+    #log_probs = tf.nn.log_softmax(logits, axis=-1)
 
-    one_hot_labels = tf.one_hot(labels, depth=num_labels, dtype=tf.float32)
+    #multi task
+    probabilities = tf.nn.sigmoid(logits)
+    labels = tf.cast(labels,tf.float32)
 
-    per_example_loss = -tf.reduce_sum(one_hot_labels * log_probs, axis=-1) # todo 08-29 try temp-loss
-    ###############bi_tempered_logistic_loss############################################################################
-    # print("##cross entropy loss is used...."); tf.logging.info("##cross entropy loss is used....")
-    # t1=0.9 #t1=0.90
-    # t2=1.05 #t2=1.05
-    # per_example_loss=bi_tempered_logistic_loss(log_probs,one_hot_labels,t1,t2,label_smoothing=0.1,num_iters=5) # TODO label_smoothing=0.0
-    #tf.logging.info("per_example_loss:"+str(per_example_loss.shape))
-    ##############bi_tempered_logistic_loss#############################################################################
-
+    #multi-class one_hot_labels = tf.one_hot(labels, depth=num_labels, dtype=tf.float32)
+    # per_example_loss = -tf.reduce_sum(one_hot_labels * log_probs, axis=-1)
+    tf.logging.info("num_labels:{};logits:{};labels:{}".format(num_labels, logits, labels))
+    #multi task
+    per_example_loss = tf.nn.sigmoid_cross_entropy_with_logits(labels = labels, logits=logits)
     loss = tf.reduce_mean(per_example_loss)
 
     return (loss, per_example_loss, logits, probabilities)
@@ -554,12 +834,25 @@ def model_fn_builder(bert_config, num_labels, init_checkpoint, learning_rate,
 
       train_op = optimization.create_optimizer(
           total_loss, learning_rate, num_train_steps, num_warmup_steps, use_tpu)
-
+     #kelly  delete
       output_spec = tf.contrib.tpu.TPUEstimatorSpec(
           mode=mode,
           loss=total_loss,
           train_op=train_op,
           scaffold_fn=scaffold_fn)
+      '''
+      pred_classes = tf.argmax(logits,axis=1)
+      acc_op = tf.metrics.accuracy(labels=label_ids,predictions=pred_classes)
+      output_spec = tf.estimator.EstimatorSpec(
+          mode=mode,
+          loss=total_loss,
+          train_op=train_op,
+          eval_metric_ops={'accuracy':acc_op})
+
+      '''
+
+
+
     elif mode == tf.estimator.ModeKeys.EVAL:
 
       def metric_fn(per_example_loss, label_ids, logits, is_real_example):
@@ -567,9 +860,17 @@ def model_fn_builder(bert_config, num_labels, init_checkpoint, learning_rate,
         accuracy = tf.metrics.accuracy(
             labels=label_ids, predictions=predictions, weights=is_real_example)
         loss = tf.metrics.mean(values=per_example_loss, weights=is_real_example)
+         #kelly add
+        auc = tf.metrics.auc(labels=label_ids,predictions=predictions,weights=is_real_example)
+        precision = tf.metrics.precision(labels=label_ids,predictions=predictions,weights=is_real_example)
+        recall = tf.metrics.recall(labels=label_ids,predictions=predictions,weights=is_real_example)
+
         return {
             "eval_accuracy": accuracy,
             "eval_loss": loss,
+            "eval_auc": auc,
+            "eval_precision": precision,
+            "eval_recall": recall,
         }
 
       eval_metrics = (metric_fn,
@@ -642,95 +943,6 @@ def input_fn_builder(features, seq_length, is_training, drop_remainder):
 
   return input_fn
 
-class LCQMCPairClassificationProcessor(DataProcessor): # TODO NEED CHANGE2
-  """Processor for the internal data set. sentence pair classification"""
-  def __init__(self):
-    self.language = "zh"
-
-  def get_train_examples(self, data_dir):
-    """See base class."""
-    return self._create_examples(
-        self._read_tsv(os.path.join(data_dir, "train.txt")), "train")
-    # dev_0827.tsv
-
-  def get_dev_examples(self, data_dir):
-    """See base class."""
-    return self._create_examples(
-        self._read_tsv(os.path.join(data_dir, "test.txt")), "dev") # todo change temp for test purpose
-
-  def get_test_examples(self, data_dir):
-    """See base class."""
-    return self._create_examples(
-        self._read_tsv(os.path.join(data_dir, "test.txt")), "test")
-
-  def get_labels(self):
-    """See base class."""
-    return ["0", "1"]
-    #return ["-1","0", "1"]
-
-  def _create_examples(self, lines, set_type):
-    """Creates examples for the training and dev sets."""
-    examples = []
-    print("length of lines:",len(lines))
-    for (i, line) in enumerate(lines):
-      #print('#i:',i,line)
-      if i == 0:
-        continue
-      guid = "%s-%s" % (set_type, i)
-      try:
-          label = tokenization.convert_to_unicode(line[2])
-          text_a = tokenization.convert_to_unicode(line[0])
-          text_b = tokenization.convert_to_unicode(line[1])
-          examples.append(
-              InputExample(guid=guid, text_a=text_a, text_b=text_b, label=label))
-      except Exception:
-          print('###error.i:', i, line)
-    return examples
-
-class SentencePairClassificationProcessor(DataProcessor):
-  """Processor for the internal data set. sentence pair classification"""
-  def __init__(self):
-    self.language = "zh"
-
-  def get_train_examples(self, data_dir):
-    """See base class."""
-    return self._create_examples(
-        self._read_tsv(os.path.join(data_dir, "train_0827.tsv")), "train")
-    # dev_0827.tsv
-
-  def get_dev_examples(self, data_dir):
-    """See base class."""
-    return self._create_examples(
-        self._read_tsv(os.path.join(data_dir, "dev_0827.tsv")), "dev")
-
-  def get_test_examples(self, data_dir):
-    """See base class."""
-    return self._create_examples(
-        self._read_tsv(os.path.join(data_dir, "test_0827.tsv")), "test")
-
-  def get_labels(self):
-    """See base class."""
-    return ["0", "1"]
-    #return ["-1","0", "1"]
-
-  def _create_examples(self, lines, set_type):
-    """Creates examples for the training and dev sets."""
-    examples = []
-    print("length of lines:",len(lines))
-    for (i, line) in enumerate(lines):
-      #print('#i:',i,line)
-      if i == 0:
-        continue
-      guid = "%s-%s" % (set_type, i)
-      try:
-          label = tokenization.convert_to_unicode(line[0])
-          text_a = tokenization.convert_to_unicode(line[1])
-          text_b = tokenization.convert_to_unicode(line[2])
-          examples.append(
-              InputExample(guid=guid, text_a=text_a, text_b=text_b, label=label))
-      except Exception:
-          print('###error.i:', i, line)
-    return examples
 
 # This function is not used by this file but is still used by the Colab and
 # people who depend on it.
@@ -754,10 +966,12 @@ def main(_):
   tf.logging.set_verbosity(tf.logging.INFO)
 
   processors = {
-      "sentence_pair": SentencePairClassificationProcessor,
-      "lcqmc_pair":LCQMCPairClassificationProcessor
-
-
+      "cola": ColaProcessor,
+      "mnli": MnliProcessor,
+      "mrpc": MrpcProcessor,
+      "xnli": XnliProcessor,
+      "sim": SimProcessor,
+      "comment":CommentProcessor
   }
 
   tokenization.validate_case_matches_checkpoint(FLAGS.do_lower_case,
@@ -788,15 +1002,16 @@ def main(_):
 
   tokenizer = tokenization.FullTokenizer(
       vocab_file=FLAGS.vocab_file, do_lower_case=FLAGS.do_lower_case)
-
+  '''
+  首先获取输入文本列表，对输入文本创建训练实例，再进行输出
+  简要介绍一下FullTokenizer这个类，它以vocab_file为词典，将词转化为该词对应的id，对于某些特殊词，如johanson，会先将johanson按照最大长度拆分，再看拆分的部分是否在vocab_file里。vocab_file里有没有"johanson"这个词，但有"johan"和"##son"这两个词，所以将"johanson"这个词拆分成两个词（##表示非开头匹配）
+  '''
   tpu_cluster_resolver = None
   if FLAGS.use_tpu and FLAGS.tpu_name:
     tpu_cluster_resolver = tf.contrib.cluster_resolver.TPUClusterResolver(
         FLAGS.tpu_name, zone=FLAGS.tpu_zone, project=FLAGS.gcp_project)
 
   is_per_host = tf.contrib.tpu.InputPipelineConfig.PER_HOST_V2
-  # Cloud TPU: Invalid TPU configuration, ensure ClusterResolver is passed to tpu.
-  print("###tpu_cluster_resolver:",tpu_cluster_resolver)
   run_config = tf.contrib.tpu.RunConfig(
       cluster=tpu_cluster_resolver,
       master=FLAGS.master,
@@ -811,9 +1026,13 @@ def main(_):
   num_train_steps = None
   num_warmup_steps = None
   if FLAGS.do_train:
-    train_examples =processor.get_train_examples(FLAGS.data_dir) # TODO
-    print("###length of total train_examples:",len(train_examples))
-    num_train_steps = int(len(train_examples)/ FLAGS.train_batch_size * FLAGS.num_train_epochs)
+    train_examples = processor.get_train_examples(FLAGS.data_dir)
+    num_train_steps = int(
+        len(train_examples) / FLAGS.train_batch_size * FLAGS.num_train_epochs)
+    '''
+    warmup_proportion=0.1表示前10步用来warm up，warm up时以较低的学习率进行学习(lr = global_step/num_warmup_steps * init_lr)，
+    10步之后以正常(或衰减)的学习率来学习。至于这么做的目的不太明白，有知道的同学请务必留言告诉我下，感激不尽。
+    '''
     num_warmup_steps = int(num_train_steps * FLAGS.warmup_proportion)
 
   model_fn = model_fn_builder(
@@ -838,10 +1057,8 @@ def main(_):
 
   if FLAGS.do_train:
     train_file = os.path.join(FLAGS.output_dir, "train.tf_record")
-    train_file_exists=os.path.exists(train_file)
-    print("###train_file_exists:", train_file_exists," ;train_file:",train_file)
-    if not train_file_exists: # if tf_record file not exist, convert from raw text file. # TODO
-        file_based_convert_examples_to_features(train_examples, label_list, FLAGS.max_seq_length, tokenizer, train_file)
+    file_based_convert_examples_to_features(
+        train_examples, label_list, FLAGS.max_seq_length, tokenizer, train_file)
     tf.logging.info("***** Running training *****")
     tf.logging.info("  Num examples = %d", len(train_examples))
     tf.logging.info("  Batch size = %d", FLAGS.train_batch_size)
@@ -851,7 +1068,12 @@ def main(_):
         seq_length=FLAGS.max_seq_length,
         is_training=True,
         drop_remainder=True)
-    estimator.train(input_fn=train_input_fn, max_steps=num_train_steps)
+    #kelly add
+    tensors_to_log = {"train loss": "loss/Mean:0"}
+    logging_hook = tf.train.LoggingTensorHook(
+        tensors=tensors_to_log, every_n_iter=1)
+    estimator.train(input_fn=train_input_fn,hooks=[logging_hook], max_steps=num_train_steps)
+    #estimator.train(input_fn=train_input_fn, max_steps=num_train_steps)
 
   if FLAGS.do_eval:
     eval_examples = processor.get_dev_examples(FLAGS.data_dir)
@@ -890,41 +1112,14 @@ def main(_):
         is_training=False,
         drop_remainder=eval_drop_remainder)
 
-    #######################################################################################################################
-    # evaluate 所有的checkpoint
-    steps_and_files = []
-    filenames = tf.gfile.ListDirectory(FLAGS.output_dir)
-    for filename in filenames:
-        if filename.endswith(".index"):
-            ckpt_name = filename[:-6]
-            cur_filename = os.path.join(FLAGS.output_dir, ckpt_name)
-            global_step = int(cur_filename.split("-")[-1])
-            tf.logging.info("Add {} to eval list.".format(cur_filename))
-            steps_and_files.append([global_step, cur_filename])
-    steps_and_files = sorted(steps_and_files, key=lambda x: x[0])
+    result = estimator.evaluate(input_fn=eval_input_fn, steps=eval_steps)
 
-    output_eval_file = os.path.join(FLAGS.data_dir, "eval_results16-layer24-4million-2.txt") # finetuning-layer24-4million
-    print("output_eval_file:",output_eval_file)
-    tf.logging.info("output_eval_file:"+output_eval_file)
+    output_eval_file = os.path.join(FLAGS.output_dir, "eval_results.txt")
     with tf.gfile.GFile(output_eval_file, "w") as writer:
-        for global_step, filename in sorted(steps_and_files, key=lambda x: x[0]):
-            result = estimator.evaluate(input_fn=eval_input_fn, steps=eval_steps, checkpoint_path=filename)
-
-            tf.logging.info("***** Eval results %s *****" % (filename))
-            writer.write("***** Eval results %s *****\n" % (filename))
-            for key in sorted(result.keys()):
-                tf.logging.info("  %s = %s", key, str(result[key]))
-                writer.write("%s = %s\n" % (key, str(result[key])))
-    #######################################################################################################################
-
-    #result = estimator.evaluate(input_fn=eval_input_fn, steps=eval_steps)
-    #
-    #output_eval_file = os.path.join(FLAGS.output_dir, "eval_results.txt")
-    #with tf.gfile.GFile(output_eval_file, "w") as writer:
-    #  tf.logging.info("***** Eval results *****")
-    #  for key in sorted(result.keys()):
-    #    tf.logging.info("  %s = %s", key, str(result[key]))
-    #    writer.write("%s = %s\n" % (key, str(result[key])))
+      tf.logging.info("***** Eval results *****")
+      for key in sorted(result.keys()):
+        tf.logging.info("  %s = %s", key, str(result[key]))
+        writer.write("%s = %s\n" % (key, str(result[key])))
 
   if FLAGS.do_predict:
     predict_examples = processor.get_test_examples(FLAGS.data_dir)
