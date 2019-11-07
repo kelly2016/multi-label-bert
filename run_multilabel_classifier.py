@@ -27,6 +27,7 @@ import tokenization
 import tensorflow as tf
 import pandas as pd
 
+
 flags = tf.flags
 
 FLAGS = flags.FLAGS
@@ -119,6 +120,11 @@ tf.flags.DEFINE_string(
     "metadata.")
 
 tf.flags.DEFINE_string("master", None, "[Optional] TensorFlow master URL.")
+
+
+tf.flags.DEFINE_string(
+    "threshold_values", None,
+    "multi labels' threshold ")
 
 flags.DEFINE_integer(
     "num_tpu_cores", 8,
@@ -234,7 +240,7 @@ class CommentProcessor(DataProcessor):
         return train_data
 
     def get_test_examples(self, data_dir):
-        file_path = os.path.join(data_dir, 'comment-classification/ai_challenger_sentiment_analysis_validationset_20180816／sentiment_analysis_validationset.csv')
+        file_path = os.path.join(data_dir, 'comment-classification/ai_challenger_sentiment_analysis_testa_20180816/sentiment_analysis_testa.csv')
         train_df = pd.read_csv(file_path, encoding='utf-8')
         train_data = []
         for index, train in enumerate(train_df.values):
@@ -1149,6 +1155,8 @@ def main(_):
 
     result = estimator.predict(input_fn=predict_input_fn)
 
+
+
     output_predict_file = os.path.join(FLAGS.output_dir, "test_results.tsv")
     with tf.gfile.GFile(output_predict_file, "w") as writer:
       num_written_lines = 0
@@ -1157,8 +1165,11 @@ def main(_):
         probabilities = prediction["probabilities"]
         if i >= num_actual_predict_examples:
           break
-        output_line = "\t".join(
-            str(class_probability)
+        if predict_examples[i].guid == 630:
+            bug = 0
+        output_line =  str(predict_examples[i].guid).replace('\n','').replace('\r',' ')+"\t"+predict_examples[i].text_a+"\t"
+        output_line = output_line+"\t".join(
+            str(class_probability).replace('\n','').replace('\r',' ')
             for class_probability in probabilities) + "\n"
         writer.write(output_line)
         num_written_lines += 1
