@@ -1167,7 +1167,7 @@ def main(_):
           break
         if predict_examples[i].guid == 630:
             bug = 0
-        output_line =  str(predict_examples[i].guid).replace('\n','').replace('\r',' ')+"\t"+predict_examples[i].text_a+"\t"
+        output_line =  str(predict_examples[i].guid)+"\t"+predict_examples[i].text_a.replace('\n','').replace('\r',' ')+"\t"
         output_line = output_line+"\t".join(
             str(class_probability).replace('\n','').replace('\r',' ')
             for class_probability in probabilities) + "\n"
