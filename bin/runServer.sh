@@ -9,7 +9,7 @@ cd $RUN_PATH
 
 case "$1" in
     start)
-        nohup python3 -u $RUN_PATH/show.py runserver > nohup.log 2>&1 &
+        nohup python3 -u $RUN_PATH/show.py runserver > bin/nohup.log 2>&1 &
 
         echo "$PRG_KEY started, please check log."
 

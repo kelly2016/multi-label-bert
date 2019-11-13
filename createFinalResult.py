@@ -42,10 +42,10 @@ def deal(src_file,output_file):
                     newValues.append('-2')
             if j >= 630:
                 s = str(values[1])
-                print(s)
-                print('----------')
-                s1 = s.replace('\n','').replace('\r',' ')
-                print(s1)
+                #print(s)
+                #print('----------')
+                #s1 = s.replace('\n','').replace('\r',' ')
+                #print(s1)
                 bug = 0
             output_line = str(values[0])+"\t"+str(values[1]).replace('\n','').replace('\r',' ')+"\t"+"\t".join(newValue for newValue in newValues) + "\n"
             writer.write(output_line)
@@ -124,6 +124,6 @@ def create_bulletsjson(src_file,output_file):
 if __name__ == "__main__":
     src_file ='/Users/henry/Documents/application/multi-label-bert/data/output/test_results.tsv'
     output_file = '/Users/henry/Documents/application/multi-label-bert/data/output/sentiment_analysis_test_results.tsv'
-    #deal(src_file, output_file)
+    deal(src_file, output_file)
     output_file1 = '/Users/henry/Documents/application/multi-label-bert/data/output/bullets.json'
     create_bulletsjson(output_file,output_file1)

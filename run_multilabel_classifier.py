@@ -229,7 +229,7 @@ class CommentProcessor(DataProcessor):
 
     def get_dev_examples(self, data_dir):
         """Gets a collection of `InputExample`s for the train set."""
-        file_path = os.path.join(data_dir,  'comment-classification/ai_challenger_sentiment_analysis_validationset_20180816/sentiment_analysis_validationset.csv')
+        file_path = os.path.join(data_dir,  'comment-classification/ai_challenger_sentiment_analysis_validationset_20180816/sentiment_analysis_validationset2.csv')
         train_df = pd.read_csv(file_path, encoding='utf-8')
         train_data = []
         for index, train in enumerate(train_df.values):
@@ -858,7 +858,34 @@ def model_fn_builder(bert_config, num_labels, init_checkpoint, learning_rate,
 
     elif mode == tf.estimator.ModeKeys.EVAL:
 
-      def metric_fn(per_example_loss, label_ids, logits, is_real_example):
+        def metric_fn(per_example_loss, label_ids, probabilities, is_real_example):
+          # multi task
+          logits_split = tf.split(probabilities, num_labels, axis=-1)
+          label_ids_split = tf.split(label_ids, num_labels, axis=-1)
+          # metrics change to auc of every class
+          eval_dict = {}
+          for j, logits in enumerate(logits_split):
+
+               label_id_ = tf.cast(label_ids_split[j], dtype=tf.int32)
+               current_auc, update_op_auc = tf.metrics.auc(label_id_, logits)
+               eval_dict[('eval_auc '+str(j))] = (current_auc, update_op_auc)
+               #
+               precision = tf.metrics.precision(labels=label_id_, predictions=logits)
+               eval_dict[('eval_precision ' + str(j))] = precision
+
+
+          eval_dict['accuracy'] = tf.metrics.accuracy(labels=label_ids, predictions=probabilities)
+          eval_dict['eval_loss'] = tf.metrics.mean(values=per_example_loss)
+          return eval_dict
+
+        eval_metrics = metric_fn(per_example_loss, label_ids, probabilities, is_real_example)
+        output_spec = tf.estimator.EstimatorSpec(
+            mode=mode,
+            loss=total_loss,
+            eval_metric_ops=eval_metrics,
+            scaffold=scaffold_fn)
+        '''
+        multi label
         predictions = tf.argmax(logits, axis=-1, output_type=tf.int32)
         accuracy = tf.metrics.accuracy(
             labels=label_ids, predictions=predictions, weights=is_real_example)
@@ -875,14 +902,16 @@ def model_fn_builder(bert_config, num_labels, init_checkpoint, learning_rate,
             "eval_precision": precision,
             "eval_recall": recall,
         }
-
-      eval_metrics = (metric_fn,
+       eval_metrics = (metric_fn,
                       [per_example_loss, label_ids, logits, is_real_example])
-      output_spec = tf.contrib.tpu.TPUEstimatorSpec(
-          mode=mode,
-          loss=total_loss,
-          eval_metrics=eval_metrics,
-          scaffold_fn=scaffold_fn)
+         output_spec = tf.contrib.tpu.TPUEstimatorSpec(
+              mode=mode,
+              loss=total_loss,
+              eval_metrics=eval_metrics,
+              scaffold_fn=scaffold_fn)
+          '''
+
+
     else:
       output_spec = tf.contrib.tpu.TPUEstimatorSpec(
           mode=mode,
@@ -1117,7 +1146,7 @@ def main(_):
 
     result = estimator.evaluate(input_fn=eval_input_fn, steps=eval_steps)
 
-    output_eval_file = os.path.join(FLAGS.output_dir, "eval_results.txt")
+    output_eval_file = os.path.join(FLAGS.output_dir, "eval_result.txt")
     with tf.gfile.GFile(output_eval_file, "w") as writer:
       tf.logging.info("***** Eval results *****")
       for key in sorted(result.keys()):

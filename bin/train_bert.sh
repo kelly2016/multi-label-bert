@@ -15,6 +15,6 @@ nohup python3 run_multilabel_classifier.py \
 --max_seq_length=512 \
 --train_batch_size=16 \
 --learning_rate=5e-5 \
---num_train_epochs=10.0 \
+--num_train_epochs=4.0 \
 --eval_batch_size=16 >nohup_train.out &
 
